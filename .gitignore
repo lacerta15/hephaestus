@@ -1,0 +1,70 @@
+# --- Hyperledger Fabric artifacts ---
+network/crypto-config/
+network/channel-artifacts/
+network/organizations/
+network/system-genesis-block/
+network/*.tar.gz
+*.block
+*.tx
+
+# --- Wallets / private material ---
+api-gateway/wallet/*
+!api-gateway/wallet/.gitkeep
+**/keystore/
+**/signcerts/
+**/admincerts/
+**/cacerts/
+**/tlscacerts/
+**/msp/
+*.pem
+*.key
+*.crt
+!**/sample/*.pem
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+.yarn/
+package-lock.json.bak
+
+# --- Go ---
+chaincode/**/vendor/
+chaincode/**/*.exe
+chaincode/**/*.test
+chaincode/**/*.out
+chaincode/**/coverage.txt
+
+# --- Docker ---
+docker/data/
+docker/logs/
+.docker-compose.override.yml
+
+# --- Ansible ---
+ansible/*.retry
+ansible/.vault_pass
+ansible/group_vars/all/vault.yml
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs / runtime ---
+logs/
+*.log
+*.pid
+data/
+
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+secrets/
+*.secret

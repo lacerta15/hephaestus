@@ -1,0 +1,32 @@
+[Unit]
+Description=Hephaestus Hyperledger Fabric Orderer ({{ inventory_hostname }})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hephaestus
+Group=hephaestus
+Environment=FABRIC_CFG_PATH=/etc/hephaestus
+Environment=ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+Environment=ORDERER_GENERAL_LOCALMSPID={{ msp_id }}
+Environment=ORDERER_GENERAL_LOCALMSPDIR=/var/lib/hephaestus/msp
+Environment=ORDERER_GENERAL_TLS_ENABLED=true
+Environment=ORDERER_GENERAL_TLS_PRIVATEKEY=/var/lib/hephaestus/tls/server.key
+Environment=ORDERER_GENERAL_TLS_CERTIFICATE=/var/lib/hephaestus/tls/server.crt
+Environment=ORDERER_GENERAL_TLS_ROOTCAS=[/var/lib/hephaestus/tls/ca.crt]
+Environment=FABRIC_LOGGING_SPEC=INFO
+
+ExecStart=/usr/local/bin/orderer
+Restart=on-failure
+RestartSec=10s
+LimitNOFILE=65536
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hephaestus /var/log/hephaestus
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,2 @@
+# Wallet identities are populated at runtime by the bootstrap scripts.
+# Never commit private keys to git.

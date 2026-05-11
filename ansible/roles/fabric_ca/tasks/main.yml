@@ -1,0 +1,35 @@
+- name: Open Fabric CA port
+  ansible.posix.firewalld:
+    port: "7054/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Render fabric-ca-server config
+  ansible.builtin.template:
+    src: fabric-ca-server-config.yaml.j2
+    dest: /etc/hephaestus/fabric-ca-server-config.yaml
+    mode: '0640'
+    owner: hephaestus
+    group: hephaestus
+
+- name: Initialise CA
+  ansible.builtin.command:
+    cmd: /usr/local/bin/fabric-ca-server init -b admin:hephaestus_admin_dev_only
+    chdir: /var/lib/hephaestus
+  args:
+    creates: /var/lib/hephaestus/ca-cert.pem
+  become_user: hephaestus
+
+- name: systemd unit for fabric-ca-server
+  ansible.builtin.template:
+    src: fabric-ca.service.j2
+    dest: /etc/systemd/system/hephaestus-ca.service
+    mode: '0644'
+
+- name: Enable & start CA
+  ansible.builtin.systemd:
+    name: hephaestus-ca
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,361 @@
+# Hephaestus PoC network — Docker Compose
+#
+# Topology:
+#   * 3 BI orderer nodes (RAFT consensus, OrdererOrg = BIMSP)
+#   * 1 OJK observer peer (no endorsement, query-only)
+#   * 5 commercial bank peers (BCAMSP, MandiriMSP, BRIMSP, BNIMSP, CIMBMSP)
+#   * 1 Fabric CA per organisation
+#   * 1 CouchDB per peer (rich queries)
+#   * Antasena REST gateway + dashboard
+#
+# Bring up: docker compose -f docker/docker-compose.yaml -p hephaestus up -d
+
+version: '3.8'
+
+networks:
+  hephaestus:
+    name: hephaestus_net
+
+volumes:
+  orderer1.bi.hephaestus.id:
+  orderer2.bi.hephaestus.id:
+  orderer3.bi.hephaestus.id:
+  peer0.bca.hephaestus.id:
+  peer0.mandiri.hephaestus.id:
+  peer0.bri.hephaestus.id:
+  peer0.bni.hephaestus.id:
+  peer0.cimb.hephaestus.id:
+  peer0.ojk.hephaestus.id:
+
+# -----------------------------------------------------------------------------
+# Templated config blocks for re-use via YAML anchors
+# -----------------------------------------------------------------------------
+x-orderer-base: &orderer-base
+  image: hyperledger/fabric-orderer:2.5
+  environment:
+    - FABRIC_LOGGING_SPEC=INFO
+    - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+    - ORDERER_GENERAL_GENESISMETHOD=file
+    - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+    - ORDERER_GENERAL_LOCALMSPID=BIMSP
+    - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+    - ORDERER_GENERAL_TLS_ENABLED=true
+    - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+    - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+    - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+    - ORDERER_KAFKA_TOPIC_REPLICATIONFACTOR=1
+    - ORDERER_KAFKA_VERBOSE=true
+    - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+    - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+    - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+  working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+  command: orderer
+  networks: [hephaestus]
+
+x-peer-base: &peer-base
+  image: hyperledger/fabric-peer:2.5
+  environment:
+    - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+    - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+    - FABRIC_LOGGING_SPEC=INFO
+    - CORE_PEER_TLS_ENABLED=true
+    - CORE_PEER_GOSSIP_USELEADERELECTION=true
+    - CORE_PEER_GOSSIP_ORGLEADER=false
+    - CORE_PEER_PROFILE_ENABLED=true
+    - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+    - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+    - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+    - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+    - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+  working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+  command: peer node start
+  networks: [hephaestus]
+
+x-couchdb-base: &couchdb-base
+  image: couchdb:3.3
+  environment:
+    - COUCHDB_USER=admin
+    - COUCHDB_PASSWORD=hephaestus_dev_only
+  networks: [hephaestus]
+
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+services:
+
+  # ===== Bank Indonesia orderer cluster (RAFT) ===============================
+  orderer1.bi.hephaestus.id:
+    <<: *orderer-base
+    container_name: orderer1.bi.hephaestus.id
+    ports: ["7050:7050", "9443:9443"]
+    volumes:
+      - ../network/system-genesis-block/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer1.bi.hephaestus.id/msp:/var/hyperledger/orderer/msp
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer1.bi.hephaestus.id/tls:/var/hyperledger/orderer/tls
+      - orderer1.bi.hephaestus.id:/var/hyperledger/production/orderer
+
+  orderer2.bi.hephaestus.id:
+    <<: *orderer-base
+    container_name: orderer2.bi.hephaestus.id
+    ports: ["8050:7050"]
+    volumes:
+      - ../network/system-genesis-block/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer2.bi.hephaestus.id/msp:/var/hyperledger/orderer/msp
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer2.bi.hephaestus.id/tls:/var/hyperledger/orderer/tls
+      - orderer2.bi.hephaestus.id:/var/hyperledger/production/orderer
+
+  orderer3.bi.hephaestus.id:
+    <<: *orderer-base
+    container_name: orderer3.bi.hephaestus.id
+    ports: ["9050:7050"]
+    volumes:
+      - ../network/system-genesis-block/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer3.bi.hephaestus.id/msp:/var/hyperledger/orderer/msp
+      - ../network/organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer3.bi.hephaestus.id/tls:/var/hyperledger/orderer/tls
+      - orderer3.bi.hephaestus.id:/var/hyperledger/production/orderer
+
+  # ===== Bank peers (5 commercial banks) =====================================
+  peer0.bca.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.bca.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.bca.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.bca.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.bca.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.bca.hephaestus.id:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.bca.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=BCAMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.bca:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["7051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/bca.hephaestus.id/peers/peer0.bca.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/bca.hephaestus.id/peers/peer0.bca.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.bca.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.bca]
+
+  couchdb.bca:
+    <<: *couchdb-base
+    container_name: couchdb.bca
+    ports: ["5984:5984"]
+
+  peer0.mandiri.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.mandiri.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.mandiri.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.mandiri.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.mandiri.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.mandiri.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=MandiriMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.mandiri:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["8051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/mandiri.hephaestus.id/peers/peer0.mandiri.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/mandiri.hephaestus.id/peers/peer0.mandiri.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.mandiri.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.mandiri]
+
+  couchdb.mandiri:
+    <<: *couchdb-base
+    container_name: couchdb.mandiri
+    ports: ["6984:5984"]
+
+  peer0.bri.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.bri.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.bri.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.bri.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.bri.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.bri.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=BRIMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.bri:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["9051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/bri.hephaestus.id/peers/peer0.bri.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/bri.hephaestus.id/peers/peer0.bri.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.bri.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.bri]
+
+  couchdb.bri:
+    <<: *couchdb-base
+    container_name: couchdb.bri
+    ports: ["7984:5984"]
+
+  peer0.bni.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.bni.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.bni.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.bni.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.bni.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.bni.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=BNIMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.bni:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["10051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/bni.hephaestus.id/peers/peer0.bni.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/bni.hephaestus.id/peers/peer0.bni.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.bni.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.bni]
+
+  couchdb.bni:
+    <<: *couchdb-base
+    container_name: couchdb.bni
+    ports: ["8984:5984"]
+
+  peer0.cimb.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.cimb.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.cimb.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.cimb.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.cimb.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.cimb.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=CIMBMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.cimb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["11051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/cimb.hephaestus.id/peers/peer0.cimb.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/cimb.hephaestus.id/peers/peer0.cimb.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.cimb.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.cimb]
+
+  couchdb.cimb:
+    <<: *couchdb-base
+    container_name: couchdb.cimb
+    ports: ["9984:5984"]
+
+  # ===== OJK observer peer ===================================================
+  peer0.ojk.hephaestus.id:
+    <<: *peer-base
+    container_name: peer0.ojk.hephaestus.id
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=hephaestus_net
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=peer0.ojk.hephaestus.id
+      - CORE_PEER_ADDRESS=peer0.ojk.hephaestus.id:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.ojk.hephaestus.id:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.ojk.hephaestus.id:7051
+      - CORE_PEER_LOCALMSPID=OJKMSP
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.ojk:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=hephaestus_dev_only
+    ports: ["12051:7051"]
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network/organizations/peerOrganizations/ojk.hephaestus.id/peers/peer0.ojk.hephaestus.id/msp:/etc/hyperledger/fabric/msp
+      - ../network/organizations/peerOrganizations/ojk.hephaestus.id/peers/peer0.ojk.hephaestus.id/tls:/etc/hyperledger/fabric/tls
+      - peer0.ojk.hephaestus.id:/var/hyperledger/production
+    depends_on: [couchdb.ojk]
+
+  couchdb.ojk:
+    <<: *couchdb-base
+    container_name: couchdb.ojk
+    ports: ["10984:5984"]
+
+  # ===== CLI tool (for scripted channel/chaincode operations) ================
+  cli:
+    image: hyperledger/fabric-tools:2.5
+    container_name: hephaestus-cli
+    tty: true
+    stdin_open: true
+    environment:
+      - GOPATH=/opt/gopath
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_ID=cli
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../network:/opt/gopath/src/github.com/hyperledger/fabric/peer/network
+      - ../chaincode:/opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode
+      - ../scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts
+    networks: [hephaestus]
+
+  # ===== REST API gateway ====================================================
+  api-gateway:
+    build: ../api-gateway
+    container_name: hephaestus-api
+    ports: ["3000:3000"]
+    environment:
+      - NODE_ENV=production
+      - FABRIC_CHANNEL=antasena-channel
+      - FABRIC_CHAINCODE=antasena
+      - FABRIC_CONNECTION_PROFILE=/app/connection/connection-bca.yaml
+      - FABRIC_WALLET_PATH=/app/wallet
+      - FABRIC_USER_ID=admin
+      - JWT_SECRET=hephaestus_dev_only_change_me
+    volumes:
+      - ../api-gateway/connection:/app/connection
+      - ../api-gateway/wallet:/app/wallet
+      - ../network/organizations:/app/organizations:ro
+    depends_on: [peer0.bca.hephaestus.id]
+    networks: [hephaestus]
+
+  # ===== Web dashboard =======================================================
+  web-dashboard:
+    image: nginx:alpine
+    container_name: hephaestus-dashboard
+    ports: ["8080:80"]
+    volumes:
+      - ../web-dashboard:/usr/share/nginx/html:ro
+    networks: [hephaestus]

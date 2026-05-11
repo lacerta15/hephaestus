@@ -1,0 +1,50 @@
+# cryptogen input — generates X.509 certs and MSP material for the network
+#
+# In production you would NOT use cryptogen — every organisation runs its own
+# Fabric CA and issues its own certs. cryptogen is purely for development.
+
+OrdererOrgs:
+  - Name: BankIndonesia
+    Domain: bi.hephaestus.id
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer1
+      - Hostname: orderer2
+      - Hostname: orderer3
+
+PeerOrgs:
+  - Name: BCA
+    Domain: bca.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }
+
+  - Name: Mandiri
+    Domain: mandiri.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }
+
+  - Name: BRI
+    Domain: bri.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }
+
+  - Name: BNI
+    Domain: bni.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }
+
+  - Name: CIMB
+    Domain: cimb.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }
+
+  - Name: OJK
+    Domain: ojk.hephaestus.id
+    EnableNodeOUs: true
+    Template: { Count: 1 }
+    Users:    { Count: 1 }

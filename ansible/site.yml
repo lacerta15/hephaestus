@@ -1,0 +1,60 @@
+# Hephaestus production deployment — top-level Ansible playbook.
+#
+# Targets RHEL 8 / 9 or Rocky Linux 8 / 9. Installs:
+#   * Podman (preferred over Docker for rootless on RHEL)
+#   * Hyperledger Fabric peer / orderer binaries 2.5.x
+#   * systemd unit files for peer/orderer
+#   * firewall rules (firewalld)
+#   * SELinux contexts
+#   * log rotation
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml site.yml
+#
+# Inventory groups:
+#   [orderers]   — BI orderer cluster (3 nodes recommended)
+#   [bank_peers] — one host per bank
+#   [observers]  — OJK observer
+#   [ca]         — Fabric CA hosts (one per organisation)
+
+- name: Common base — every Hephaestus host
+  hosts: all
+  become: true
+  roles:
+    - common
+  tags: [common]
+
+- name: Fabric CA — issue identities for each org
+  hosts: ca
+  become: true
+  roles:
+    - fabric_ca
+  tags: [ca]
+
+- name: Orderer cluster — Bank Indonesia
+  hosts: orderers
+  become: true
+  roles:
+    - fabric_orderer
+  tags: [orderer]
+
+- name: Bank peers — commercial banks
+  hosts: bank_peers
+  become: true
+  roles:
+    - fabric_peer
+  tags: [peer]
+
+- name: Observer peer — OJK
+  hosts: observers
+  become: true
+  roles:
+    - fabric_peer
+  tags: [observer]
+
+- name: API gateway — one per bank back-office
+  hosts: bank_peers:observers
+  become: true
+  roles:
+    - api_gateway
+  tags: [gateway]

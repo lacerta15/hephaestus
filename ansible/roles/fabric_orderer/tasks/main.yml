@@ -1,0 +1,32 @@
+- name: Open orderer ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "7050/tcp"   # orderer
+    - "9443/tcp"   # operations
+
+- name: Render orderer.yaml
+  ansible.builtin.template:
+    src: orderer.yaml.j2
+    dest: /etc/hephaestus/orderer.yaml
+    mode: '0640'
+    owner: hephaestus
+    group: hephaestus
+  notify: restart orderer
+
+- name: Drop systemd unit
+  ansible.builtin.template:
+    src: orderer.service.j2
+    dest: /etc/systemd/system/hephaestus-orderer.service
+    mode: '0644'
+  notify: restart orderer
+
+- name: Enable & start orderer
+  ansible.builtin.systemd:
+    name: hephaestus-orderer
+    enabled: true
+    state: started
+    daemon_reload: true

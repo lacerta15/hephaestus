@@ -1,0 +1,5 @@
+- name: restart peer
+  ansible.builtin.systemd:
+    name: hephaestus-peer
+    state: restarted
+    daemon_reload: true

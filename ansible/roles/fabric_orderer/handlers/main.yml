@@ -1,0 +1,5 @@
+- name: restart orderer
+  ansible.builtin.systemd:
+    name: hephaestus-orderer
+    state: restarted
+    daemon_reload: true

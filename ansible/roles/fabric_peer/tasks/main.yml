@@ -1,0 +1,35 @@
+# Fabric peer role — installs config, MSP, and a systemd unit.
+
+- name: Open peer ports in firewalld
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "7051/tcp"   # peer endpoint
+    - "7052/tcp"   # chaincode listener
+    - "9443/tcp"   # operations / metrics
+
+- name: Render peer core.yaml
+  ansible.builtin.template:
+    src: core.yaml.j2
+    dest: /etc/hephaestus/core.yaml
+    owner: hephaestus
+    group: hephaestus
+    mode: '0640'
+  notify: restart peer
+
+- name: Drop systemd unit
+  ansible.builtin.template:
+    src: peer.service.j2
+    dest: /etc/systemd/system/hephaestus-peer.service
+    mode: '0644'
+  notify: restart peer
+
+- name: Enable & start peer
+  ansible.builtin.systemd:
+    name: hephaestus-peer
+    enabled: true
+    state: started
+    daemon_reload: true

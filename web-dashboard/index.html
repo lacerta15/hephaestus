@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hephaestus — Antasena on Blockchain</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🔨</span>
+      <div>
+        <h1>Hephaestus</h1>
+        <p>Permissioned blockchain for Indonesian bank reporting</p>
+      </div>
+    </div>
+    <div class="session" id="session">
+      <span class="not-logged">Not signed in</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ==== Auth ==== -->
+    <section id="auth-section" class="card">
+      <h2>Sign in</h2>
+      <p class="subtitle">PoC only — choose any user from a known org. JWT is stored in memory for this session.</p>
+      <form id="login-form">
+        <label>Username
+          <input type="text" id="username" value="alice@bca" required>
+        </label>
+        <label>Organisation
+          <select id="org" required>
+            <option value="BCAMSP">BCA (BCAMSP)</option>
+            <option value="MandiriMSP">Mandiri (MandiriMSP)</option>
+            <option value="BRIMSP">BRI (BRIMSP)</option>
+            <option value="BNIMSP">BNI (BNIMSP)</option>
+            <option value="CIMBMSP">CIMB Niaga (CIMBMSP)</option>
+            <option value="BIMSP">Bank Indonesia (BIMSP)</option>
+            <option value="OJKMSP">OJK (OJKMSP)</option>
+          </select>
+        </label>
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <!-- ==== Submit ==== -->
+    <section id="submit-section" class="card hidden">
+      <h2>Submit a regulatory report</h2>
+      <p class="subtitle">Bank role only. Hash + metadata go on-chain; the XBRL payload stays in your vault.</p>
+      <form id="submit-form">
+        <div class="grid">
+          <label>Bank code (sandi)
+            <input type="text" id="bankCode" placeholder="014" required pattern="\d{3}">
+          </label>
+          <label>Report type
+            <select id="reportType" required>
+              <option>LBU</option><option>LBBU</option><option>LHBU</option>
+              <option>LSMK</option><option>APOLO</option>
+            </select>
+          </label>
+          <label>Reporting period
+            <input type="text" id="reportingPeriod" placeholder="2026-04" required>
+          </label>
+          <label>Schema version
+            <input type="text" id="schemaVersion" value="BI-LBU-2.1" required>
+          </label>
+          <label class="full">Payload URI (off-chain)
+            <input type="text" id="payloadURI" placeholder="vault://bca/2026-04/lbu.xbrl" required>
+          </label>
+          <label class="full">Payload contents (will be hashed locally)
+            <textarea id="payloadContent" rows="4" placeholder="Paste the file contents here, or upload below"></textarea>
+            <input type="file" id="payloadFile">
+          </label>
+        </div>
+        <button class="primary" type="submit">🔨 Forge on-chain</button>
+      </form>
+      <pre id="submit-result" class="result"></pre>
+    </section>
+
+    <!-- ==== Validate ==== -->
+    <section id="validate-section" class="card hidden">
+      <h2>Validate a report (BI only)</h2>
+      <form id="validate-form">
+        <label>Report ID
+          <input type="text" id="validate-id" placeholder="014-LBU-2026-04-001" required>
+        </label>
+        <label class="full">Notes
+          <input type="text" id="validate-notes" placeholder="All checks passed">
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="validate-final"> Mark as FINAL
+        </label>
+        <button class="primary" type="submit">Validate</button>
+      </form>
+      <pre id="validate-result" class="result"></pre>
+    </section>
+
+    <!-- ==== Explore ==== -->
+    <section id="explore-section" class="card hidden">
+      <h2>Explore the ledger</h2>
+      <div class="explore-controls">
+        <input type="text" id="query-input" placeholder="Bank code, period, or status">
+        <select id="query-mode">
+          <option value="bankCode">By bank code</option>
+          <option value="period">By period</option>
+          <option value="status">By status</option>
+        </select>
+        <button class="secondary" id="query-btn">Search</button>
+      </div>
+      <div id="reports-list"></div>
+    </section>
+
+    <!-- ==== Audit ==== -->
+    <section id="audit-section" class="card hidden">
+      <h2>Audit trail</h2>
+      <div class="audit-controls">
+        <input type="text" id="audit-id" placeholder="Report ID to audit">
+        <button class="secondary" id="audit-btn">Show history</button>
+      </div>
+      <div id="audit-trail"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Hephaestus — Apache 2.0 — <a href="https://github.com/your-org/hephaestus">GitHub</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

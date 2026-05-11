@@ -1,0 +1,57 @@
+- name: Install Node.js 20
+  ansible.builtin.dnf:
+    name: nodejs
+    state: present
+
+- name: Sync API gateway sources
+  ansible.posix.synchronize:
+    src: ../../../api-gateway/
+    dest: /opt/hephaestus/api-gateway/
+    delete: true
+    rsync_opts:
+      - "--exclude=node_modules"
+      - "--exclude=wallet"
+
+- name: Install npm deps
+  community.general.npm:
+    path: /opt/hephaestus/api-gateway
+    production: true
+
+- name: Open gateway port
+  ansible.posix.firewalld:
+    port: "3000/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/hephaestus-api.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Hephaestus API gateway
+      After=network-online.target
+
+      [Service]
+      Type=simple
+      User=hephaestus
+      WorkingDirectory=/opt/hephaestus/api-gateway
+      Environment=NODE_ENV=production
+      Environment=PORT=3000
+      Environment=FABRIC_CHANNEL=antasena-channel
+      Environment=FABRIC_CHAINCODE=antasena
+      Environment=FABRIC_CONNECTION_DIR=/etc/hephaestus/connection
+      Environment=FABRIC_WALLET_PATH=/var/lib/hephaestus/wallet
+      ExecStart=/usr/bin/node src/server.js
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable & start API
+  ansible.builtin.systemd:
+    name: hephaestus-api
+    enabled: true
+    state: started
+    daemon_reload: true

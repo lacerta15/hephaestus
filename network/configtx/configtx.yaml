@@ -1,0 +1,193 @@
+# Hephaestus configtx — channel & genesis configuration
+#
+# Generates:
+#   * the genesis block for the orderer system channel
+#   * a channel transaction for the antasena-channel application channel
+#
+# Run with cryptogen + configtxgen tools (see network/scripts/generate-artifacts.sh).
+
+Organizations:
+
+  # ----- Orderer organisation: Bank Indonesia -------------------------------
+  - &BankIndonesia
+    Name: BIMSP
+    ID: BIMSP
+    MSPDir: ../organizations/ordererOrganizations/bi.hephaestus.id/msp
+    Policies: &BankIndonesiaPolicies
+      Readers: { Type: Signature, Rule: "OR('BIMSP.member')" }
+      Writers: { Type: Signature, Rule: "OR('BIMSP.member')" }
+      Admins:  { Type: Signature, Rule: "OR('BIMSP.admin')" }
+    OrdererEndpoints:
+      - orderer1.bi.hephaestus.id:7050
+      - orderer2.bi.hephaestus.id:7050
+      - orderer3.bi.hephaestus.id:7050
+
+  # ----- Bank peer organisations --------------------------------------------
+  - &BCA
+    Name: BCAMSP
+    ID: BCAMSP
+    MSPDir: ../organizations/peerOrganizations/bca.hephaestus.id/msp
+    Policies: &BCAPolicies
+      Readers:    { Type: Signature, Rule: "OR('BCAMSP.admin','BCAMSP.peer','BCAMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('BCAMSP.admin','BCAMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('BCAMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('BCAMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.bca.hephaestus.id
+        Port: 7051
+
+  - &Mandiri
+    Name: MandiriMSP
+    ID: MandiriMSP
+    MSPDir: ../organizations/peerOrganizations/mandiri.hephaestus.id/msp
+    Policies: &MandiriPolicies
+      Readers:    { Type: Signature, Rule: "OR('MandiriMSP.admin','MandiriMSP.peer','MandiriMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('MandiriMSP.admin','MandiriMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('MandiriMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('MandiriMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.mandiri.hephaestus.id
+        Port: 7051
+
+  - &BRI
+    Name: BRIMSP
+    ID: BRIMSP
+    MSPDir: ../organizations/peerOrganizations/bri.hephaestus.id/msp
+    Policies: &BRIPolicies
+      Readers:    { Type: Signature, Rule: "OR('BRIMSP.admin','BRIMSP.peer','BRIMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('BRIMSP.admin','BRIMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('BRIMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('BRIMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.bri.hephaestus.id
+        Port: 7051
+
+  - &BNI
+    Name: BNIMSP
+    ID: BNIMSP
+    MSPDir: ../organizations/peerOrganizations/bni.hephaestus.id/msp
+    Policies: &BNIPolicies
+      Readers:    { Type: Signature, Rule: "OR('BNIMSP.admin','BNIMSP.peer','BNIMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('BNIMSP.admin','BNIMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('BNIMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('BNIMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.bni.hephaestus.id
+        Port: 7051
+
+  - &CIMB
+    Name: CIMBMSP
+    ID: CIMBMSP
+    MSPDir: ../organizations/peerOrganizations/cimb.hephaestus.id/msp
+    Policies: &CIMBPolicies
+      Readers:    { Type: Signature, Rule: "OR('CIMBMSP.admin','CIMBMSP.peer','CIMBMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('CIMBMSP.admin','CIMBMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('CIMBMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('CIMBMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.cimb.hephaestus.id
+        Port: 7051
+
+  - &OJK
+    Name: OJKMSP
+    ID: OJKMSP
+    MSPDir: ../organizations/peerOrganizations/ojk.hephaestus.id/msp
+    Policies: &OJKPolicies
+      Readers:    { Type: Signature, Rule: "OR('OJKMSP.admin','OJKMSP.peer','OJKMSP.client')" }
+      Writers:    { Type: Signature, Rule: "OR('OJKMSP.admin','OJKMSP.client')" }
+      Admins:     { Type: Signature, Rule: "OR('OJKMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('OJKMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.ojk.hephaestus.id
+        Port: 7051
+
+# -----------------------------------------------------------------------------
+Capabilities:
+  Channel:     &ChannelCapabilities     { V2_0: true }
+  Orderer:     &OrdererCapabilities     { V2_0: true }
+  Application: &ApplicationCapabilities { V2_5: true }
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:     { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:     { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:      { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    LifecycleEndorsement: { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+    Endorsement:          { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+  Capabilities: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  EtcdRaft:
+    Consenters:
+      - Host: orderer1.bi.hephaestus.id
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer1.bi.hephaestus.id/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer1.bi.hephaestus.id/tls/server.crt
+      - Host: orderer2.bi.hephaestus.id
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer2.bi.hephaestus.id/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer2.bi.hephaestus.id/tls/server.crt
+      - Host: orderer3.bi.hephaestus.id
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer3.bi.hephaestus.id/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/bi.hephaestus.id/orderers/orderer3.bi.hephaestus.id/tls/server.crt
+  Addresses:
+    - orderer1.bi.hephaestus.id:7050
+    - orderer2.bi.hephaestus.id:7050
+    - orderer3.bi.hephaestus.id:7050
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 500
+    AbsoluteMaxBytes: 10 MB
+    PreferredMaxBytes: 2 MB
+  Organizations:
+  Policies:
+    Readers:         { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:         { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:          { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    BlockValidation: { Type: ImplicitMeta, Rule: "ANY Writers" }
+  Capabilities: *OrdererCapabilities
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+  Capabilities: *ChannelCapabilities
+
+# -----------------------------------------------------------------------------
+Profiles:
+
+  # System genesis block — bootstraps the orderer cluster
+  HephaestusGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations: [*BankIndonesia]
+      Capabilities: *OrdererCapabilities
+    Consortiums:
+      HephaestusConsortium:
+        Organizations:
+          - *BCA
+          - *Mandiri
+          - *BRI
+          - *BNI
+          - *CIMB
+          - *OJK
+
+  # Application channel — antasena-channel
+  AntasenaChannel:
+    Consortium: HephaestusConsortium
+    <<: *ChannelDefaults
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *BCA
+        - *Mandiri
+        - *BRI
+        - *BNI
+        - *CIMB
+        - *OJK
+      Capabilities: *ApplicationCapabilities

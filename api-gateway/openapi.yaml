@@ -1,0 +1,188 @@
+openapi: 3.0.3
+info:
+  title: Hephaestus API Gateway
+  description: REST API for the Antasena chaincode on Hyperledger Fabric.
+  version: 1.0.0
+  license:
+    name: Apache-2.0
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local PoC
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Report:
+      type: object
+      properties:
+        reportId: { type: string, example: "014-LBU-2026-04-001" }
+        bankCode: { type: string, example: "014" }
+        bankMSPID: { type: string, example: "BCAMSP" }
+        reportType: { type: string, enum: [LBU, LBBU, LHBU, LSMK, APOLO] }
+        reportingPeriod: { type: string, example: "2026-04" }
+        payloadHash: { type: string, example: "a3f5bd6e..." }
+        payloadURI: { type: string, example: "vault://bca/2026-04/lbu.xbrl" }
+        status:
+          type: string
+          enum: [DRAFT, SUBMITTED, VALIDATED, REJECTED, FINAL, AMENDED]
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        validatedBy: { type: string }
+        validatedAt: { type: string, format: date-time }
+        validationNotes: { type: string }
+        schemaVersion: { type: string, example: "BI-LBU-2.1" }
+        prevReportID: { type: string }
+        txId: { type: string }
+
+    SubmitReportRequest:
+      type: object
+      required: [bankCode, reportType, reportingPeriod, payloadHash, payloadURI, schemaVersion]
+      properties:
+        bankCode:        { type: string }
+        reportType:      { type: string }
+        reportingPeriod: { type: string }
+        payloadHash:     { type: string }
+        payloadURI:      { type: string }
+        schemaVersion:   { type: string }
+
+    LoginRequest:
+      type: object
+      required: [username, org]
+      properties:
+        username: { type: string, example: "alice@bca" }
+        org:      { type: string, example: "BCAMSP" }
+
+    LoginResponse:
+      type: object
+      properties:
+        token:     { type: string }
+        username:  { type: string }
+        org:       { type: string }
+        expiresIn: { type: string }
+
+    ValidateRequest:
+      type: object
+      properties:
+        markFinal: { type: boolean }
+        notes:     { type: string }
+
+    AuditEntry:
+      type: object
+      properties:
+        txId:      { type: string }
+        timestamp: { type: string, format: date-time }
+        isDelete:  { type: boolean }
+        report:    { $ref: '#/components/schemas/Report' }
+
+paths:
+
+  /health:
+    get:
+      summary: Liveness probe
+      responses: { '200': { description: ok } }
+
+  /auth/login:
+    post:
+      summary: Trade username + org for a JWT
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } }
+      responses:
+        '200':
+          description: ok
+          content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } }
+
+  /reports:
+    post:
+      summary: Submit a new regulatory report (bank only)
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SubmitReportRequest' } } }
+      responses:
+        '201':
+          description: created
+          content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } }
+    get:
+      summary: Rich query
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: bankCode
+          schema: { type: string }
+        - in: query
+          name: period
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Report' } }
+
+  /reports/{id}:
+    get:
+      summary: Read current state of a report
+      security: [ { bearerAuth: [] } ]
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: ok
+          content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } }
+        '404': { description: not found }
+
+  /reports/{id}/validate:
+    post:
+      summary: Validate or reject a report (BIMSP only)
+      security: [ { bearerAuth: [] } ]
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ValidateRequest' } } }
+      responses:
+        '200':
+          description: ok
+          content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } }
+
+  /reports/{id}/audit:
+    get:
+      summary: Immutable audit trail
+      security: [ { bearerAuth: [] } ]
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AuditEntry' } }
+
+  /reports/{id}/verify-payload:
+    post:
+      summary: Recompute payload hash and compare to on-chain value
+      security: [ { bearerAuth: [] } ]
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payload]
+              properties:
+                payload: { type: string, description: "Raw payload bytes (UTF-8 string)" }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches: { type: boolean }

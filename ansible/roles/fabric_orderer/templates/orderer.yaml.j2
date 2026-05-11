@@ -1,0 +1,38 @@
+General:
+  ListenAddress: 0.0.0.0
+  ListenPort: 7050
+  TLS:
+    Enabled: true
+    PrivateKey: /var/lib/hephaestus/tls/server.key
+    Certificate: /var/lib/hephaestus/tls/server.crt
+    RootCAs: [/var/lib/hephaestus/tls/ca.crt]
+    ClientAuthRequired: false
+  BootstrapMethod: file
+  BootstrapFile: /var/lib/hephaestus/genesis.block
+  LocalMSPDir: /var/lib/hephaestus/msp
+  LocalMSPID: {{ msp_id }}
+  Cluster:
+    SendBufferSize: 100
+    ClientCertificate: /var/lib/hephaestus/tls/server.crt
+    ClientPrivateKey: /var/lib/hephaestus/tls/server.key
+    RootCAs: [/var/lib/hephaestus/tls/ca.crt]
+    DialTimeout: 5s
+    RPCTimeout: 7s
+    ReplicationBufferSize: 20971520
+    ReplicationPullTimeout: 5s
+    ReplicationRetryTimeout: 5s
+
+FileLedger:
+  Location: /var/lib/hephaestus/ledger
+
+Consensus:
+  WALDir: /var/lib/hephaestus/etcdraft/wal
+  SnapDir: /var/lib/hephaestus/etcdraft/snapshot
+
+Operations:
+  ListenAddress: 0.0.0.0:9443
+  TLS:
+    Enabled: false
+
+Metrics:
+  Provider: prometheus

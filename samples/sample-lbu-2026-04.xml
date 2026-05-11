@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample stub of a Bank Indonesia LBU report payload (greatly simplified).
+  In production this would be a full XBRL document conforming to the
+  BI-LBU-2.1 taxonomy. The chain only stores the SHA-256 of this file.
+-->
+<lbu xmlns="urn:bi:lbu:2.1">
+  <header>
+    <bankCode>014</bankCode>
+    <bankName>Bank Central Asia</bankName>
+    <reportingPeriod>2026-04</reportingPeriod>
+    <reportType>LBU</reportType>
+    <schemaVersion>BI-LBU-2.1</schemaVersion>
+  </header>
+  <neraca>
+    <kasDanSetaraKas currency="IDR">12500000000000</kasDanSetaraKas>
+    <kreditYangDiberikan currency="IDR">650000000000000</kreditYangDiberikan>
+    <danaPihakKetiga currency="IDR">820000000000000</danaPihakKetiga>
+    <modalInti currency="IDR">95000000000000</modalInti>
+  </neraca>
+  <rasio>
+    <car>22.4</car>
+    <ldr>79.3</ldr>
+    <npl>2.1</npl>
+    <roa>3.4</roa>
+  </rasio>
+</lbu>

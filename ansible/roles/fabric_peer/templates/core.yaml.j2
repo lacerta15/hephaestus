@@ -1,0 +1,56 @@
+# Minimal core.yaml — the peer reads this from FABRIC_CFG_PATH.
+# In production tune the values below to match your hardware budget.
+
+peer:
+  id: {{ inventory_hostname }}
+  networkId: hephaestus
+  listenAddress: 0.0.0.0:7051
+  chaincodeListenAddress: 0.0.0.0:7052
+  address: {{ inventory_hostname }}:7051
+
+  fileSystemPath: /var/lib/hephaestus/ledger
+  mspConfigPath: /var/lib/hephaestus/msp
+  localMspId: {{ msp_id }}
+
+  tls:
+    enabled: true
+    cert:
+      file: /var/lib/hephaestus/tls/server.crt
+    key:
+      file: /var/lib/hephaestus/tls/server.key
+    rootcert:
+      file: /var/lib/hephaestus/tls/ca.crt
+
+  gossip:
+    bootstrap: {{ inventory_hostname }}:7051
+    useLeaderElection: true
+    orgLeader: false
+    endpoint: {{ inventory_hostname }}:7051
+    externalEndpoint: {{ inventory_hostname }}:7051
+    pvtData:
+      pullRetryThreshold: 60s
+
+  authentication:
+    timewindow: 15m
+
+  client:
+    connTimeout: 3s
+
+ledger:
+  state:
+    stateDatabase: CouchDB
+    couchDBConfig:
+      couchDBAddress: 127.0.0.1:5984
+      username: hephaestus
+      passwordFile: /etc/hephaestus/couchdb.password
+      maxRetries: 3
+      maxRetriesOnStartup: 12
+      requestTimeout: 35s
+
+operations:
+  listenAddress: 0.0.0.0:9443
+  tls:
+    enabled: false   # use a sidecar reverse-proxy + mTLS in real deployments
+
+metrics:
+  provider: prometheus

@@ -1,0 +1,21 @@
+[Unit]
+Description=Hephaestus Fabric CA ({{ org }})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hephaestus
+Group=hephaestus
+WorkingDirectory=/var/lib/hephaestus
+ExecStart=/usr/local/bin/fabric-ca-server start \
+  --home /var/lib/hephaestus \
+  --config /etc/hephaestus/fabric-ca-server-config.yaml
+Restart=on-failure
+RestartSec=10s
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

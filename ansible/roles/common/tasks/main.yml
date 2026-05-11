@@ -1,0 +1,94 @@
+# Common base — every Hephaestus host.
+
+- name: Update package cache
+  ansible.builtin.dnf:
+    name: '*'
+    state: latest
+  when: ansible_os_family == "RedHat"
+
+- name: Install baseline packages
+  ansible.builtin.dnf:
+    name:
+      - chrony            # NTP — Fabric is sensitive to clock drift
+      - firewalld
+      - podman
+      - podman-compose
+      - jq
+      - curl
+      - wget
+      - tar
+      - gzip
+      - logrotate
+      - policycoreutils-python-utils  # SELinux helpers
+      - audit             # auditd — required by banking compliance
+    state: present
+
+- name: Ensure chrony is running
+  ansible.builtin.systemd:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Ensure firewalld is running
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: Ensure auditd is running
+  ansible.builtin.systemd:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Create hephaestus service user
+  ansible.builtin.user:
+    name: hephaestus
+    system: true
+    home: /var/lib/hephaestus
+    shell: /sbin/nologin
+    state: present
+
+- name: Create directory layout
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: hephaestus
+    group: hephaestus
+    mode: '0750'
+    state: directory
+  loop:
+    - /etc/hephaestus
+    - /var/lib/hephaestus
+    - /var/lib/hephaestus/msp
+    - /var/lib/hephaestus/tls
+    - /var/lib/hephaestus/ledger
+    - /var/log/hephaestus
+
+- name: Install Fabric binaries
+  ansible.builtin.unarchive:
+    src: "https://github.com/hyperledger/fabric/releases/download/v{{ fabric_version }}/hyperledger-fabric-linux-amd64-{{ fabric_version }}.tar.gz"
+    dest: /usr/local
+    remote_src: true
+    creates: "/usr/local/bin/peer"
+
+- name: Install Fabric CA binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/hyperledger/fabric-ca/releases/download/v{{ fabric_ca_version }}/hyperledger-fabric-ca-linux-amd64-{{ fabric_ca_version }}.tar.gz"
+    dest: /usr/local
+    remote_src: true
+    creates: "/usr/local/bin/fabric-ca-client"
+
+- name: Configure logrotate for Fabric
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/hephaestus
+    mode: '0644'
+    content: |
+      /var/log/hephaestus/*.log {
+        daily
+        rotate 14
+        compress
+        delaycompress
+        missingok
+        notifempty
+        copytruncate
+      }
